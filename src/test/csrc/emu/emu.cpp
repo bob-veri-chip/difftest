@@ -45,6 +45,19 @@
 
 extern remote_bitbang_t *jtag;
 
+#ifndef CONFIG_NO_DIFFTEST
+namespace {
+
+void restore_goldenmem_from_ref(const void *data, size_t size) {
+  assert(pmem != nullptr);
+  assert(pmem_flag != nullptr);
+  memcpy(pmem, data, size);
+  memset(pmem_flag, 0, size);
+}
+
+} // namespace
+#endif // CONFIG_NO_DIFFTEST
+
 Emulator::Emulator(int argc, const char *argv[])
     : dut_ptr(new SIMULATOR), cycles(0), trapCode(STATE_RUNNING), elapsed_time(uptime()) {
 
@@ -64,6 +77,14 @@ Emulator::Emulator(int argc, const char *argv[])
 #endif // VERILATOR
 
   args = parse_args(argc, argv);
+#ifndef CONFIG_NO_DIFFTEST
+  if ((args.enable_snapshot || args.snapshot_path) && !args.enable_diff) {
+    eprintf(
+        "RTL snapshots in a difftest-enabled build require differential testing; remove --no-diff or rebuild "
+        "with NO_DIFF=1.\n");
+    exit(EXIT_FAILURE);
+  }
+#endif
 #ifdef VERILATOR
   Verilated::commandArgs(argc, argv); // Prepare extra args for TLMonitor
 #endif
@@ -155,15 +176,21 @@ Emulator::Emulator(int argc, const char *argv[])
 
   if (args.enable_snapshot || args.snapshot_path) {
     dut_ptr->snapshot_init();
+  }
 
-    if (args.snapshot_path) {
-      Info("loading from snapshot `%s`...\n", args.snapshot_path);
-      snapshot_load(args.snapshot_path);
 #ifndef CONFIG_NO_DIFFTEST
-      auto cycleCnt = difftest[0]->get_trap_event()->cycleCnt;
-      Info("model cycleCnt = %" PRIu64 "\n", cycleCnt);
+  // init difftest
+  auto ref_ramsize = args.ram_size ? simMemory->get_size() : 0;
+  difftest_init(args.enable_diff, ref_ramsize);
 #endif // CONFIG_NO_DIFFTEST
-    }
+
+  if (args.snapshot_path) {
+    Info("loading from snapshot `%s`...\n", args.snapshot_path);
+    snapshot_load(args.snapshot_path);
+#ifndef CONFIG_NO_DIFFTEST
+    auto cycleCnt = difftest[0]->get_trap_event()->cycleCnt;
+    Info("model cycleCnt = %" PRIu64 "\n", cycleCnt);
+#endif // CONFIG_NO_DIFFTEST
   }
 
   // set log time range and log level
@@ -171,10 +198,6 @@ Emulator::Emulator(int argc, const char *argv[])
   dut_ptr->set_log_end(args.log_end);
 
 #ifndef CONFIG_NO_DIFFTEST
-  // init difftest
-  auto ref_ramsize = args.ram_size ? simMemory->get_size() : 0;
-  difftest_init(args.enable_diff, ref_ramsize);
-
   // init difftest traces
   if (args.trace_name) {
     for (int i = 0; i < NUM_CORES; i++) {
@@ -717,6 +740,7 @@ void Emulator::snapshot_load(const char *filename) {
   char *buf = (char *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
   snapshot_read(buf, size);
   proxy->mem_init(PMEM_BASE, buf, size, DUT_TO_REF);
+  restore_goldenmem_from_ref(buf, size);
   munmap(buf, size);
 
   uint64_t csr_buf[4096];
