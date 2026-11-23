@@ -26,6 +26,16 @@ LEMU_CXXFILES = $(EMU_CXXFILES) $(shell find $(LEMU_CSRC_DIR) -name "*.cpp" 2> /
 LEMU_CXXFLAGS = $(EMU_CXXFLAGS) -I$(LEMU_CSRC_DIR) -DLEMU --std=c++17
 LEMU_LDFLAGS  = $(SIM_LDFLAGS) -ldl
 
+# The trace-enabled generated model can exceed the x86-64 small code model.
+# Keep the large-code-model linker workaround opt-in: normal Lemu builds use
+# the generated makefile and linker defaults unchanged.  Enable it with
+# `make ... LEMU_LARGE_MODEL=1` when the generated model needs the high-address
+# model island (typically with a large partitioned waveform build).
+LEMU_LARGE_MODEL ?= 0
+LEMU_LARGE_MODEL_MK = $(abspath $(LEMU_CSRC_DIR)/large-model.mk)
+LEMU_LARGE_MODEL_LINKER_SCRIPT ?= $(abspath $(LEMU_CSRC_DIR)/large-model.ld)
+LEMU_LARGE_MODEL_DEPS = $(if $(filter 1,$(LEMU_LARGE_MODEL)),$(LEMU_LARGE_MODEL_MK) $(LEMU_LARGE_MODEL_LINKER_SCRIPT))
+LEMU_LARGE_MODEL_MAKE_ARGS = $(if $(filter 1,$(LEMU_LARGE_MODEL)),LEMU_LARGE_MODEL_TARGET="$(LEMU_TARGET)" LEMU_LARGE_MODEL_LINKER_SCRIPT="$(LEMU_LARGE_MODEL_LINKER_SCRIPT)")
 # GNU find avoids expanding tens of thousands of partitioned-object names into
 # one command.  Keep the old glob as a fallback for find implementations that
 # do not support -maxdepth (for example the BSD default on macOS).
@@ -200,6 +210,10 @@ LEMU_HEADERS := $(EMU_HEADERS) $(shell find $(LEMU_CSRC_DIR) -name "*.h" 2> /dev
 LEMU_PGO_WORKLOAD_DEP := $(if $(strip $(PGO_WORKLOAD)),$(PGO_WORKLOAD))
 
 lemu-config-check:
+	@case "$(LEMU_LARGE_MODEL)" in \
+		0|1) ;; \
+		*) echo "Error: LEMU_LARGE_MODEL must be 0 or 1 (got '$(LEMU_LARGE_MODEL)')." >&2; exit 1 ;; \
+	esac
 	@if [ "$(EMU_SNAPSHOT)" = "1" ] && [ "$(EMU_COVERAGE)" = "1" ]; then \
 		echo "Error: Lemu does not support EMU_SNAPSHOT=1 together with EMU_COVERAGE=1." >&2; \
 		exit 1; \
@@ -255,6 +269,8 @@ lemu-config-check:
 		'EMU_COVERAGE=$(EMU_COVERAGE)' \
 		'LEMU_SS_TEST=$(LEMU_SS_TEST)' \
 		'LEMU_SPLIT_VAR=$(LEMU_SPLIT_VAR)' \
+		'LEMU_LARGE_MODEL=$(LEMU_LARGE_MODEL)' \
+		'LEMU_LARGE_MODEL_LINKER_SCRIPT=$(LEMU_LARGE_MODEL_LINKER_SCRIPT)' \
 		'LEMU_FLAGS_EXTRA=$(LEMU_FLAGS_EXTRA)' \
 		'LEMU_FLAGS=$(LEMU_FLAGS)' \
 		'LEMU_CXXFLAGS=$(LEMU_CXXFLAGS)' \
@@ -293,6 +309,9 @@ ifneq ($(LEMU_5_000),1)
 	@sed -i 's/const lemuSymsp/lemuSymsp/g' $(LEMU_BUILD_DIR)/V$(EMU_TOP).h || { status=$$?; rm -f "$@"; exit $$status; }
 	@sed -i 's/LemuRtThreadPool\* const/LemuRtThreadPool*/g' $(LEMU_BUILD_DIR)/V$(EMU_TOP)__Syms.h || { status=$$?; rm -f "$@"; exit $$status; }
 endif
+ifeq ($(LEMU_LARGE_MODEL),1)
+	@printf '\n# XiangShan large-code-model link configuration (opt-in)\ninclude $$(NOOP_HOME)/difftest/src/test/csrc/lemu/large-model.mk\n' >> "$@"
+endif
 
 LEMU_COMPILE_FILTER =
 # 2> $(BUILD_DIR)/g++.err.log | tee $(BUILD_DIR)/g++.out.log | grep 'g++' | awk '{print "Compiling/Generating", $$NF}'
@@ -301,6 +320,7 @@ lemu-build-emu: $(SIM_EXTRA_OBJS)
 ifeq ($(REMOTE),localhost)
 	@sync -d $(BUILD_DIR) $(LEMU_BUILD_DIR)
 	$(TIME_CMD) $(MAKE) -s LEMU_MODEL_PARALLEL_BUILDS=1 OPT_SLOW="-O0" \
+						$(LEMU_LARGE_MODEL_MAKE_ARGS) \
 						OPT_FAST="$(LEMU_OPT_FAST)" \
 						PGO_CFLAGS="$(PGO_CFLAGS)" \
 						PGO_LDFLAGS="$(PGO_LDFLAGS)" \
@@ -312,6 +332,8 @@ else
 	ssh -tt $(REMOTE) 'export NOOP_HOME=$(NOOP_HOME); \
 					   $(MAKE) -C $(NOOP_HOME)/difftest lemu-build-emu \
 					   -j `nproc` \
+					   LEMU_LARGE_MODEL="$(LEMU_LARGE_MODEL)" \
+					   LEMU_LARGE_MODEL_LINKER_SCRIPT="$(LEMU_LARGE_MODEL_LINKER_SCRIPT)" \
 					   OPT_FAST="'"$(LEMU_OPT_FAST)"'" \
 					   PGO_CFLAGS="'"$(PGO_CFLAGS)"'" \
 					   PGO_LDFLAGS="'"$(PGO_LDFLAGS)"'" \
@@ -319,7 +341,7 @@ else
 					   $(LEMU_ROOT_MAKE_ARG)'
 endif
 
-$(LEMU_TARGET): $(LEMU_MK) $(SIM_VSRC) $(LEMU_CXXFILES) $(LEMU_HEADERS) $(SIM_EXTRA_OBJS) $(LEMU_PGO_WORKLOAD_DEP)
+$(LEMU_TARGET): $(LEMU_MK) $(SIM_VSRC) $(LEMU_CXXFILES) $(LEMU_HEADERS) $(SIM_EXTRA_OBJS) $(LEMU_PGO_WORKLOAD_DEP) $(LEMU_LARGE_MODEL_DEPS)
 	@printf '\n[c++] Compiling C++ files...\n' >> $(TIMELOG)
 	@date -R | tee -a $(TIMELOG)
 ifdef PGO_WORKLOAD
