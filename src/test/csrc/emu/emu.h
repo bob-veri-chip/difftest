@@ -24,6 +24,15 @@
 #include "simulator.h"
 #include <sys/types.h>
 
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
+#ifdef LEMU
+#include <lemurt_cov.h>
+using SimulatorCoverageContext = LemuRtCovContext;
+#else
+using SimulatorCoverageContext = VerilatedCovContext;
+#endif
+#endif
+
 class Emulator final : public DUT {
 private:
   Simulator *dut_ptr;
@@ -31,9 +40,9 @@ private:
   bool force_dump_wave = false;
   CommonArgs args;
   LightSSS *lightsss = NULL;
-#if VM_COVERAGE == 1
-  VerilatedCovContext *coverage = NULL;
-#endif // VM_COVERAGE
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
+  SimulatorCoverageContext *coverage = NULL;
+#endif // LEMU_MODEL_COVERAGE
 
   // emu control variable
   uint64_t cycles;
@@ -75,7 +84,7 @@ private:
 
   const char *cycle_wavefile(uint64_t cycles);
 
-#if VM_COVERAGE == 1
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
   void save_coverage();
 #endif
 

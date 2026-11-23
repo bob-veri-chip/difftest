@@ -59,6 +59,7 @@ EMU_COVERAGE ?=
 EMU_OPTIMIZE ?= -O3
 
 include verilator.mk
+include lemu.mk
 include gsim.mk
 
 ########## Emu build recipes ##########
@@ -66,17 +67,32 @@ include gsim.mk
 emu-verilator: verilator-emu
 	@ln -sf $(VERILATOR_TARGET) $(EMU)
 
+emu-lemu: lemu-emu
+	@ln -sf $(LEMU_TARGET) $(EMU)
+
 emu-gsim: gsim-emu
 	@ln -sf $(GSIM_EMU_TARGET) $(EMU)
+
+ifeq ($(GSIM),1)
+ifeq ($(LEMU),1)
+$(error GSIM and LEMU are mutually exclusive)
+endif
+endif
 
 # By default, when no simulator is specified, emu refers to verilator-emu
 emu:
 ifeq ($(GSIM),1)
 	@$(MAKE) emu-gsim
+else ifeq ($(LEMU),1)
+	@$(MAKE) emu-lemu OBJCACHE="$(OBJCACHE)"
 else
 	@$(MAKE) emu-verilator OBJCACHE="$(OBJCACHE)"
 endif
 
+ifeq ($(LEMU),1)
+emu-mk: lemu-emu-mk
+else
 emu-mk: verilator-emu-mk
+endif
 
-clean-obj: verilator-clean-obj gsim-clean-obj
+clean-obj: verilator-clean-obj lemu-clean-obj gsim-clean-obj

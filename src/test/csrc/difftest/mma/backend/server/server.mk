@@ -36,7 +36,7 @@ MMA_WORKER = $(BUILD_DIR)/difftest-mma-worker
 MMA_WORKER_BINARY = $(BUILD_DIR)/mma-worker/$(MMA_BACKEND)/difftest-mma-worker
 MMA_WORKER_CXXFLAGS = $(subst \\\",\", $(SIM_CXXFLAGS))
 MMA_WORKER_OBJS = $(patsubst $(DIFFTEST_CSRC_DIR)/mma/%.cpp,$(BUILD_DIR)/mma-worker/$(MMA_BACKEND)/%.o,$(MMA_WORKER_SRCS))
-MMA_WORKER_LINKS = $(addsuffix /difftest-mma-worker,$(BUILD_DIR)/verilator-compile $(BUILD_DIR)/gsim-compile)
+MMA_WORKER_LINKS = $(addsuffix /difftest-mma-worker,$(BUILD_DIR)/verilator-compile $(BUILD_DIR)/lemu-compile $(BUILD_DIR)/gsim-compile)
 SIM_EXTRA_OBJS += $(MMA_WORKER_LINKS)
 $(abspath $(BUILD_DIR)/gsim-compile/emu): | $(SIM_EXTRA_OBJS)
 $(addprefix $(BUILD_DIR)/,fpga-host ref-drive simv uvsim xsim libdifftest.so pldm-compile/libdpi_emu.so): | $(MMA_WORKER) $(MMA_WORKER_EXTRA_OBJS)

@@ -144,16 +144,21 @@ abstract class DPICBase(config: GatewayConfig) extends ExtModule with HasExtModu
       else ""
     val modDef =
       s"""
-         |`ifndef SYNTHESIS
+         |`ifdef SYNTHESIS
+         |`ifndef LEMU
+         |  `define DISABLE_DIFFTEST_GATEWAY_DPIC
+         |`endif // LEMU
+         |`endif // SYNTHESIS
+         |`ifndef DISABLE_DIFFTEST_GATEWAY_DPIC
          |`ifdef DIFFTEST
          |`include "DifftestMacros.svh"
          |`endif // DIFFTEST
-         |`endif // SYNTHESIS
+         |`endif // DISABLE_DIFFTEST_GATEWAY_DPIC
          |module $desiredName(
          |  $modPortsString
          |);
          |  wire _dummy_unused = 1'b1;
-         |`ifndef SYNTHESIS
+         |`ifndef DISABLE_DIFFTEST_GATEWAY_DPIC
          |`ifdef DIFFTEST
          |`ifndef CONFIG_DIFFTEST_FPGA
          |$dpicDecl
@@ -164,7 +169,7 @@ abstract class DPICBase(config: GatewayConfig) extends ExtModule with HasExtModu
          |  end
          |`endif // CONFIG_DIFFTEST_FPGA
          |`endif // DIFFTEST
-         |`endif // SYNTHESIS
+         |`endif // DISABLE_DIFFTEST_GATEWAY_DPIC
          |endmodule
          |""".stripMargin
     modDef

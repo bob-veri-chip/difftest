@@ -103,7 +103,12 @@ class ReplayControl(config: GatewayConfig) extends ExtModule with HasExtModuleIn
        |  output reg [${config.replayWidth - 1}:0] replay_head
        |);
        |
-       |`ifndef SYNTHESIS
+       |`ifdef SYNTHESIS
+       |`ifndef LEMU
+       |  `define DISABLE_DIFFTEST_REPLAY_DPIC
+       |`endif // LEMU
+       |`endif // SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_REPLAY_DPIC
        |`ifdef DIFFTEST
        |import "DPI-C" context function void set_replay_scope();
        |
@@ -120,7 +125,7 @@ class ReplayControl(config: GatewayConfig) extends ExtModule with HasExtModuleIn
        |  replay_head = head;
        |endfunction
        |`endif // DIFFTEST
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_REPLAY_DPIC
        |endmodule
        |""".stripMargin,
   )

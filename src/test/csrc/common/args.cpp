@@ -178,9 +178,9 @@ static inline void print_help(const char *file) {
   printf("      --dramsim3-ini         specify the ini file for DRAMSim3\n");
   printf("      --dramsim3-outdir      specify the output dir for DRAMSim3\n");
 #endif
-#if VM_COVERAGE == 1
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
   printf("      --dump-coverage        enable coverage dump\n");
-#endif // VM_COVERAGE
+#endif // LEMU_MODEL_COVERAGE
   printf("      --load-difftrace=NAME  load from trace NAME\n");
   printf("      --dump-difftrace=NAME  dump to trace NAME\n");
   printf("      --dump-refdrive-trace=DIR record REF driving commands\n");
@@ -332,11 +332,11 @@ CommonArgs parse_args(int argc, const char *argv[]) {
           case 12: printf("[WARN] chisel db is not enabled at compile time, ignore --dump-db\n"); continue;
 #endif
           case 13:
-#if VM_COVERAGE == 1
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
             args.dump_coverage = true;
 #else
             printf("[WARN] coverage is not enabled at compile time, ignore --dump-coverage\n");
-#endif // VM_COVERAGE
+#endif // LEMU_MODEL_COVERAGE
             continue;
           case 14: args.enable_ref_trace = true; continue;
           case 15: args.enable_commit_trace = true; continue;

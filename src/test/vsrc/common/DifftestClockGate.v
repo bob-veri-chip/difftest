@@ -24,7 +24,9 @@ module DifftestClockGate(
 
 `ifdef SYNTHESIS
 `ifndef PALLADIUM
+`ifndef LEMU
 `define CLOCKGATE_BUFGCE
+`endif
 `endif
 `endif
 

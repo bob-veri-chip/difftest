@@ -262,11 +262,16 @@ class SquashControl(config: GatewayConfig) extends ExtModule with HasExtModuleIn
   setInline(
     "SquashControl.v",
     s"""
-       |`ifndef SYNTHESIS
+       |`ifdef SYNTHESIS
+       |`ifndef LEMU
+       |  `define DISABLE_DIFFTEST_SQUASH_DPIC
+       |`endif // LEMU
+       |`endif // SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_SQUASH_DPIC
        |`ifdef DIFFTEST
        |`include "DifftestMacros.svh"
        |`endif // DIFFTEST
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_SQUASH_DPIC
        |module SquashControl(
        |  input clock,
        |  input reset,
@@ -274,11 +279,11 @@ class SquashControl(config: GatewayConfig) extends ExtModule with HasExtModuleIn
        |  output [7:0] maxFused
        |);
        |
-       |`ifndef SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_SQUASH_DPIC
        |`ifndef CONFIG_DIFFTEST_FPGA
        |`define SQUASH_CTRL
        |`endif // CONFIG_DIFFTEST_FPGA
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_SQUASH_DPIC
        |
        |`ifndef SQUASH_CTRL
        |  assign enable = 1;

@@ -47,10 +47,15 @@ class SDCardHelper extends ExtModule with HasExtModuleInline {
   setInline(
     "SDCardHelper.v",
     s"""
-       |`ifndef SYNTHESIS
+       |`ifdef SYNTHESIS
+       |`ifndef LEMU
+       |  `define DISABLE_DIFFTEST_SDCARD_DPIC
+       |`endif // LEMU
+       |`endif // SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_SDCARD_DPIC
        |import "DPI-C" function void sd_setaddr(input int addr);
        |import "DPI-C" function void sd_read(output int data);
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_SDCARD_DPIC
        |
        |module SDCardHelper (
        |  input clock,
@@ -60,14 +65,14 @@ class SDCardHelper extends ExtModule with HasExtModuleInline {
        |  output reg [31:0] io_data
        |);
        |
-       |`ifndef SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_SDCARD_DPIC
        |  always@(negedge clock) begin
        |    if (io_ren) sd_read(io_data);
        |  end
        |  always@(posedge clock) begin
        |    if (io_setAddr) sd_setaddr(io_addr);
        |  end
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_SDCARD_DPIC
        |
        |endmodule
      """.stripMargin,

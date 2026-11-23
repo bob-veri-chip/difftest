@@ -158,26 +158,31 @@ private[topdown] object TopdownDPI {
        |  wire _unused_clock = clock;
        |  reg [ENTRY_NUM*OUT_WIDTH-1:0] dpi_out;
        |
-       |`ifndef SYNTHESIS
+       |`ifdef SYNTHESIS
+       |`ifndef LEMU
+       |  `define DISABLE_DIFFTEST_TOPDOWN_DPIC
+       |`endif // LEMU
+       |`endif // SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_TOPDOWN_DPIC
        |  import "DPI-C" function void $dpiFuncName(
        |    input  int unsigned entries_num,
        |    input  bit [ENTRY_NUM*INFO_WIDTH-1:0] in,
        |    output bit [ENTRY_NUM*OUT_WIDTH-1:0] out
        |  );
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_TOPDOWN_DPIC
        |
        |  always @(*) begin
        |    /* verilator lint_off WIDTHCONCAT */
        |    out = '0;
        |    dpi_out = '0;
        |    /* verilator lint_on WIDTHCONCAT */
-       |`ifndef SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_TOPDOWN_DPIC
        |    $dpiFuncName(
        |      ENTRY_NUM,
        |      in[ENTRY_NUM*INFO_WIDTH-1:0],
        |      dpi_out
        |    );
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_TOPDOWN_DPIC
        |    out[ENTRY_NUM*OUT_WIDTH-1:0] = dpi_out;
        |  end
        |
@@ -202,28 +207,33 @@ private[topdown] object TopdownDPI {
        |
        |  reg [ROB_ENTRY_NUM*INFO_WIDTH-1:0] dpi_out;
        |
-       |`ifndef SYNTHESIS
+       |`ifdef SYNTHESIS
+       |`ifndef LEMU
+       |  `define DISABLE_DIFFTEST_TOPDOWN_DPIC
+       |`endif // LEMU
+       |`endif // SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_TOPDOWN_DPIC
        |  import "DPI-C" function void $dpiFuncName(
        |    input  int unsigned iq_entries_num,
        |    input  int unsigned rob_entries_num,
        |    input  bit [IQ_ENTRY_NUM*INFO_WIDTH-1:0] in,
        |    output bit [ROB_ENTRY_NUM*INFO_WIDTH-1:0] out
        |  );
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_TOPDOWN_DPIC
        |
        |  always @(*) begin
        |    /* verilator lint_off WIDTHCONCAT */
        |    out = '0;
        |    dpi_out = '0;
        |    /* verilator lint_on WIDTHCONCAT */
-       |`ifndef SYNTHESIS
+       |`ifndef DISABLE_DIFFTEST_TOPDOWN_DPIC
        |    $dpiFuncName(
        |      IQ_ENTRY_NUM,
        |      ROB_ENTRY_NUM,
        |      in[IQ_ENTRY_NUM*INFO_WIDTH-1:0],
        |      dpi_out
        |    );
-       |`endif // SYNTHESIS
+       |`endif // DISABLE_DIFFTEST_TOPDOWN_DPIC
        |    out[ROB_ENTRY_NUM*INFO_WIDTH-1:0] = dpi_out;
        |  end
        |

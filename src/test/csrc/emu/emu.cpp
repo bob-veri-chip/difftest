@@ -46,12 +46,16 @@
 extern remote_bitbang_t *jtag;
 
 Emulator::Emulator(int argc, const char *argv[])
+#ifdef LEMU
+    : dut_ptr(nullptr), cycles(0), trapCode(STATE_RUNNING), elapsed_time(uptime()) {
+#else
     : dut_ptr(new SIMULATOR), cycles(0), trapCode(STATE_RUNNING), elapsed_time(uptime()) {
+#endif
 
-#ifdef VERILATOR
-#if !defined(VERILATOR_VERSION_INTEGER) || VERILATOR_VERSION_INTEGER < 5026000
+#if defined(LEMU) || \
+    (defined(VERILATOR) && (!defined(VERILATOR_VERSION_INTEGER) || VERILATOR_VERSION_INTEGER < 5026000))
   // Large designs may cause segmentation fault due to stack overflow.
-  // Legacy versions of Verilator do not automatically set the stack size.
+  // Some simulator versions do not automatically set the stack size.
   // Therefore, we set it manually here with a default value.
   const size_t EMU_STACK_SIZE = 32 * 1024 * 1024;
   struct rlimit rlim;
@@ -61,17 +65,33 @@ Emulator::Emulator(int argc, const char *argv[])
     printf("[warning] cannot set stack size. Large designs may cause SIGSEGV.\n");
   }
 #endif
-#endif // VERILATOR
 
   args = parse_args(argc, argv);
+#ifdef LEMU
+  if (args.enable_fork) {
+    eprintf("LightSSS (--enable-fork) is currently not supported with Lemu.\n");
+    exit(EXIT_FAILURE);
+  }
+#endif
 #ifdef VERILATOR
   Verilated::commandArgs(argc, argv); // Prepare extra args for TLMonitor
+#elif defined(LEMU)
+  LemuRt::commandArgs(argc, argv); // Prepare extra args for TLMonitor and the generated model
 #endif
 
 #ifdef ENABLE_CONSTANTIN
   void constantinLoad(const char *cst_file);
   constantinLoad(args.cst_file);
 #endif // CONSTANTIN
+#ifdef LEMU
+  // srand
+  srand(args.seed);
+  srand48(args.seed);
+  LemuRt::randSeed(args.seed);
+  LemuRt::randReset(2);
+
+  dut_ptr = new SIMULATOR;
+#endif // LEMU
 #ifdef VERILATOR
   // srand
   srand(args.seed);
@@ -216,9 +236,13 @@ Emulator::Emulator(int argc, const char *argv[])
     FORK_PRINTF("enable fork debugging...\n")
   }
 
-#if VM_COVERAGE == 1
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
   if (args.dump_coverage) {
+#ifdef LEMU
+    coverage = LemuRt::threadContextp()->coveragep();
+#else
     coverage = Verilated::threadContextp()->coveragep();
+#endif
   }
 #endif
 }
@@ -226,7 +250,7 @@ Emulator::Emulator(int argc, const char *argv[])
 Emulator::~Emulator() {
   // Simulation ends here, do clean up & display jobs
 
-#if VM_COVERAGE == 1
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
   // we dump coverage into files at the end
   // since we are not sure when an emu will stop
   // we distinguish multiple dat files by emu start time
@@ -597,6 +621,9 @@ int Emulator::is_finished() {
 #ifdef VERILATOR
       Verilated::gotFinish() ||
 #endif // VERILATOR
+#ifdef LEMU
+      LemuRt::gotFinish() ||
+#endif // LEMU
       trapCode != STATE_RUNNING;
 }
 
@@ -604,7 +631,7 @@ int Emulator::is_good() {
   return is_good_trap();
 }
 
-#if VM_COVERAGE == 1
+#if (defined(LEMU) && LEMU_MODEL_COVERAGE == 1) || (!defined(LEMU) && VM_COVERAGE == 1)
 void Emulator::save_coverage() {
   const char *p = create_noop_filename(".coverage.dat");
   Info("dump coverage data to %s...\n", p);

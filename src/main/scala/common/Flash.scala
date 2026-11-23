@@ -51,7 +51,9 @@ class FlashHelper extends ExtModule with HasExtModuleInline {
     "FlashHelper.v",
     """
       |`ifdef SYNTHESIS
+      |`ifndef LEMU
       |  `define DISABLE_DIFFTEST_FLASH_DPIC
+      |`endif // LEMU
       |`endif // SYNTHESIS
       |`ifndef DISABLE_DIFFTEST_FLASH_DPIC
       |import "DPI-C" function void flash_read

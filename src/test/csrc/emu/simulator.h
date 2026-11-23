@@ -23,14 +23,14 @@ class Simulator {
 private:
   static void report_snapshot_error(void *__restrict datap, size_t size) {
     printf("Snapshot is unsupported in this simulator or disabled.\n");
-    printf("If you are using Verilator, please compile with EMU_SNAPSHOT=1 to enable it.\n");
+    printf("Compile the selected simulator with EMU_SNAPSHOT=1 to enable it.\n");
     throw std::runtime_error("Snapshot not supported.");
   }
 
 protected:
   static void report_waveform_error() {
     printf("Waveform is unsupported in this simulator or disabled.\n");
-    printf("If you are using Verilator, please compile with EMU_TRACE=1 to enable it.\n");
+    printf("Compile the selected simulator with EMU_TRACE=1 to enable it.\n");
     throw std::runtime_error("Waveform not supported.");
   }
 
@@ -122,15 +122,16 @@ protected:
   }
 };
 
-#ifdef VERILATOR
+#if defined(LEMU)
+#define SIMULATOR LemuSim
+#include "lemu.h"
+#elif defined(VERILATOR)
 #define SIMULATOR VerilatorSim
 #include "verilator.h"
-#endif // VERILATOR
-
-#ifdef GSIM
+#elif defined(GSIM)
 #define SIMULATOR GsimSim
 #include "gsim.h"
-#endif // GSIM
+#endif
 
 #ifndef SIMULATOR
 #error "SIMULATOR undetected, please define it."

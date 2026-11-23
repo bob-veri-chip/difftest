@@ -255,8 +255,10 @@ private class MemRWHelper(size: BigInt, val nr: Int, val nw: Int)
     s"$desiredName.v",
     s"""
        |`ifdef SYNTHESIS
+       |`ifndef LEMU
        |  `define DISABLE_DIFFTEST_RAM_DPIC
-       |`endif
+       |`endif // LEMU
+       |`endif // SYNTHESIS
        |module $desiredName #(
        |  parameter RAM_SIZE
        |)(
